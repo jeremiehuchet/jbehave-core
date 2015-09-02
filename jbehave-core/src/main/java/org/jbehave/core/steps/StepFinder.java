@@ -1,5 +1,7 @@
 package org.jbehave.core.steps;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -7,6 +9,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
+import org.jbehave.core.model.StepPattern;
 
 /**
  * <p>
@@ -248,6 +251,80 @@ public class StepFinder {
 
         }
 
+    }
+
+    /**
+     * Strategy to priorise candidate steps implemented in the same class as the previous step.
+     * <p>
+     * <ul>
+     * <li>steps implemented in the same class as the last executed step will be preferred before any other step</li>
+     * <li>remaining conflicts are solved by delegating to {@link ByPriorityField} strategy</li>
+     * </ul>
+     * <p>
+     * This prioritizing strategy must be registered as a {@link StepMonitor}.
+     */
+    public static class ByDeclaringClass implements PrioritisingStrategy, StepMonitor {
+
+        private String lastStepClassCandidate = null;
+
+        private String lastStepClass = null;
+
+        public List<StepCandidate> prioritise(final String stepAsText, final List<StepCandidate> candidates) {
+
+            Collections.sort(candidates, new Comparator<StepCandidate>() {
+                public int compare(final StepCandidate o1, final StepCandidate o2) {
+                    final String className1 = o1.getMethod().getDeclaringClass().getName();
+                    final String className2 = o2.getMethod().getDeclaringClass().getName();
+                    if (className1.equals(className2)) {
+                        return o2.getPriority().compareTo(o1.getPriority());
+                    } else if (className1.equals(lastStepClass)) {
+                        return -1;
+                    } else if (className2.equals(lastStepClass)) {
+                        return 1;
+                    } else {
+                        return o2.getPriority().compareTo(o1.getPriority());
+                    }
+                }
+            });
+            return candidates;
+        }
+
+        public void stepMatchesType(final String stepAsString, final String previousAsString, final boolean matchesType, final StepType stepType,
+                final Method method, final Object stepsInstance) {
+            if (matchesType) {
+                this.lastStepClassCandidate = method.getDeclaringClass().getName();
+            }
+        }
+
+        public void stepMatchesPattern(final String step, final boolean matches, final StepPattern stepPattern, final Method method, final Object stepsInstance) {
+            if (matches && method.getDeclaringClass().getName().equals(lastStepClassCandidate)) {
+                this.lastStepClass = lastStepClassCandidate;
+            }
+        }
+
+        public void convertedValueOfType(String value, Type type, Object converted, Class<?> converterClass) {
+        }
+
+        public void performing(String step, boolean dryRun) {
+        }
+
+        public void usingAnnotatedNameForParameter(String name, int position) {
+        }
+
+        public void usingParameterNameForParameter(String name, int position) {
+        }
+
+        public void usingTableAnnotatedNameForParameter(String name, int position) {
+        }
+
+        public void usingTableParameterNameForParameter(String name, int position) {
+        }
+
+        public void usingNaturalOrderForParameter(int position) {
+        }
+
+        public void foundParameter(String parameter, int position) {
+        }
     }
 
 }
